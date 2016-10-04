@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Interactive Steamgraph</title>
+<style>
+
+body {
+  font: 10px sans-serif;
+}
+
+.chart {
+  background: #fff;
+}
+
+p {
+  font: 12px helvetica;
+}
+
+.axis path, .axis line {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1px;
+  shape-rendering: crispEdges;
+}
+
+button {
+  position: absolute;
+  right: 50px;
+  top: 10px;
+}
+
+rect {
+  fill-opacity: .6;
+  fill: steelblue;
+}
+
+</style>
+<body>
+
+<h1>Streamgraph visualization of Global Warming</h1>
+<p> This is an interactive visualization of  <a class = "blantLink" href = "paolo.mp-concepts.net/dataVis/globalWarmingStreamGraph_animated.html">this</a> animation. It shows temperature changes on the earth from 1880 to today.
+</p>
+ <svg class="sphere"></svg> 
+<br>
+<div class="chart">
+</div>
+
+<script src="https://d3js.org/d3.v3.min.js"></script>
+
+<script>
+var yPos = 90;
+var marginGlobe = {top: 10, right: 50, bottom: 10, left: 5},
+    widthGlobe = (yPos * 2) + 55 - marginGlobe.left - marginGlobe.right,
+    heightGlobe = (yPos * 2) + 20 - marginGlobe.top - marginGlobe.bottom;
+
+var latitudes = ['90N', '64N', '44N', '24N', 'EQU', '24S', '44S', '64S', '90S'];
+var nTicks = latitudes.length;
+var posLine = d3.range(0, yPos * 2 + 1, yPos * 2 / (nTicks-1));
+var lineData = [];
+for (firstDim = 0; firstDim < nTicks; firstDim++) {
+	lineData[firstDim] = [{x: 0,  y: posLine[firstDim], name:latitudes[firstDim]},
+	  {x: widthGlobe, y: posLine[firstDim]}];
+}
+
+var svgGlobe = d3.select(".sphere")
+    .attr("width", widthGlobe + marginGlobe.left + marginGlobe.right)
+    .attr("height", heightGlobe + marginGlobe.top + marginGlobe.bottom)
+  .append("g")
+    .attr("transform", "translate(" + marginGlobe.left + "," + marginGlobe.top + ")");
+
+var globe = svgGlobe.append("g")
+                .attr("class", "globe");
+
+globe.selectAll("circle")
+    .data([yPos])
+    .enter()
+    .append("circle")
+.attr("cy", yPos)
+	.attr("cx", yPos)
+	.attr("r", yPos)
+	.attr("style", "fill:green");
+
+
+var lineFunction = d3.svg.line()
+						.x(function(d) { return d.x; })
+						.y(function(d) { return d.y; });
+						
+var lines = svgGlobe.selectAll(".line")
+    .data(lineData)
+    .enter().append("g")
+      .attr("class", "city");
+      
+lines.append("path")
+	.attr("class", "line")
+	.attr("d", function(d) {return lineFunction(d); })
+	.attr("stroke", "#f00")
+	.attr("stroke-opacity", ".2")
+	.attr("shape-rendering", "crispEdges")
+	.attr("fill", "none");
+	
+lines.append("text")
+	.datum(function(d) { 
+		return {x: d[d.length - 1].x, y: d[d.length - 1].y, id: d[0].name}; })
+	.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
+	.attr("x", 3)
+	.attr("dy", "0.35em")
+	.style("font", "10px sans-serif")
+	.text(function(d){return d.id;})
+
+var overlappingArea = svgGlobe.append("g")
+                .attr("class", "overlappingArea");
+
+var part1= nTicks-2, part2 = nTicks-1;
+var data = [{
+	value:Math.max(lineData[part2][0].y, lineData[part1][0].y), 
+	height: Math.abs(
+		Math.max(lineData[part2][0].y, lineData[part1][0].y) - 
+		Math.min(lineData[part2][0].y, lineData[part1][0].y)
+		)
+}];
+
+overlappingArea.selectAll("circle")
+	.data(data)
+  .enter().append("rect")
+	.attr("y", function(d) { return d.value; })
+	.attr("x", 0)
+	.attr("height", function(d) { return d.height; })
+	.attr("width", widthGlobe);
+
+function partOfGlobe(parts) {
+	switch (parts){
+		case "Glob": 
+			parts = "90S.90N";
+			break;
+		case "NHem": 
+			parts = "EQU.90N";
+			break;
+		case "SHem": 
+			parts = "90S.EQU";
+			break;
+	}
+	var res = parts.split('.');
+	
+	for (part1 = 0; part1 < nTicks; part1++) {
+		if (res[0] == latitudes[part1])
+			break;
+	}
+	for (part2 = 0; part2 < nTicks; part2++) {
+		if (res[1] == latitudes[part2])
+			break;
+	}
+	
+	var data = [{
+		value:Math.max(lineData[part2][0].y, lineData[part1][0].y), 
+		height: Math.abs(
+			Math.max(lineData[part2][0].y, lineData[part1][0].y) - 
+			Math.min(lineData[part2][0].y, lineData[part1][0].y)
+			)
+	}];
+
+	overlappingArea.selectAll("rect")
+		.data(data) // this has to be a vector
+    .transition()
+    .duration(750) 
+    .attr("y", function(d) { return d.value - d.height; })
+		.attr("height", function(d) { return d.height; });
+};                
+                
+                
+chart("data/outfile.csv", "fire");
+var datearray = [];
+var colorrange = [];
+
+function chart(csvpath, color) {
+
+  switch (color) {
+		case "blue":
+	    colorrange = ["#045A8D", "#2B8CBE", "#74A9CF", "#A6BDDB", "#D0D1E6", "#F1EEF6"];
+			break;
+		case "pink":
+	    colorrange = ["#980043", "#DD1C77", "#DF65B0", "#C994C7", "#D4B9DA", "#F1EEF6"];
+			break;
+ 		case "orange":
+	    colorrange = ["#B30000", "#E34A33", "#FC8D59", "#FDBB84", "#FDD49E", "#FEF0D9"];
+			break;
+		case "fire":
+	    colorrange = ["#ffffcc","#ffeda0","#fed976","#feb24c","#fd8d3c","#fc4e2a","#e31a1c","#bd0026","#800026"];   
+			break;
+		case "RdYlBl":
+	    colorrange = ["#a50026","#d73027","#f46d43","#fdae61","#fee090","#ffffbf","#e0f3f8","#abd9e9","#74add1","#4575b4","#313695"];
+			break;
+		case "RdBl":
+	    colorrange = ["#a50026","#d73027","#f46d43","#fee090","#ffffbf","#abd9e9","#74add1","#4575b4","#313695"];
+			break;
+		case "RdBlShort":
+	    colorrange = ["#d73027","#fc8d59","#fee090","#ffffbf","#e0f3f8","#91bfdb","#4575b4"];
+			break;
+	}
+	strokecolor = colorrange[colorrange.length - 1];
+
+  var format = d3.time.format("%Y");
+
+  var marginStream = {top: 20, right: 60, bottom: 30, left: 80};
+  var widthStream = document.body.clientWidth - marginStream.left - marginStream.right;
+  var heightStream = 400 - marginStream.top - marginStream.bottom;
+
+  var tooltip = d3.select("body")
+                  .append("div")
+                  .attr("class", "remove")
+                  .style("position", "absolute")
+                  .style("z-index", "20")
+                  .style("visibility", "hidden")
+                  .style("top", "30px")
+                  .style("left", ((widthGlobe + marginGlobe.left + 50)  + "px"));
+
+  var x = d3.time.scale()
+                  .range([0, widthStream]);
+
+  var y = d3.scale.linear()
+                  .range([heightStream-10, 0]);
+
+  var z = d3.scale.ordinal()
+      .range(colorrange);
+
+  var xAxis = d3.svg.axis()
+      .scale(x)
+      .orient("bottom")
+      .ticks(d3.time.years, 10);
+
+  var yAxis = d3.svg.axis()
+      .scale(y);
+
+  var stack = d3.layout.stack()
+                        .offset("silhouette")
+                        .values(function(d) { return d.values; })
+                        .x(function(d) { return d.date; })
+                        .y(function(d) { return d.value; });
+
+  var nest = d3.nest()
+                .key(function(d) { return d.key; });
+
+  var area = d3.svg.area()
+                    .interpolate("cardinal")
+                    .x(function(d) { return x(d.date); })
+                    .y0(function(d) { return y(d.y0); })
+                    .y1(function(d) { return y(d.y0 + d.y); });
+
+  var svg = d3.select(".chart").append("svg")
+                                .attr("width", widthStream + marginStream.left + marginStream.right)
+                                .attr("height", heightStream + marginStream.top + marginStream.bottom)
+                                .append("g")
+                                .attr("transform", "translate(" + marginStream.left +
+                                  "," + marginStream.top + ")");
+
+  var graph = d3.csv(csvpath, function(data) {
+                data.forEach(function(d) {
+                  d.date = format.parse(d.date);
+                  d.value = +d.value / 1e2;
+                });
+
+  var layers = stack(nest.entries(data));
+
+  x.domain(d3.extent(data, function(d) { return d.date; }));
+  y.domain([0, d3.max(data, function(d) { return d.y0 + d.y; })]);
+
+  svg.selectAll(".layer")
+      .data(layers)
+      .enter().append("path")
+      .attr("class", "layer")
+      .attr("d", function(d) { return area(d.values); })
+      .style("fill", function(d, i) { return z(i); });
+
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + heightStream + ")")
+      .call(xAxis)
+			.append("text")
+      .attr("x", 5)
+ 			.attr("y", 30)
+      .attr("dx", ".71em")
+      .style("text-anchor", "end")
+      .text("Year");
+
+  svg.append("g")
+      .attr("class", "y axis")
+      .attr("transform", "translate(" + widthStream + ", 0)")
+      .call(yAxis.orient("right"))
+ 			.call(yAxis.tickFormat(function(d) { return Math.round(((5 / 9) * (d - 32))*10)/10 + " °F"; }));
+
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis.orient("left"))
+ 			.call(yAxis.tickFormat(function(d) { return d + " °C"; }))
+      .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", -60) 
+      .attr("dy", ".71em")
+      .style("text-anchor", "end") 
+      .text("Temperature");
+
+
+  svg.selectAll(".layer")
+      .attr("opacity", 1)
+      .on("mouseover", function(d, i) {
+        svg.selectAll(".layer").transition()
+            .duration(250)
+            .attr("opacity", function(d, j) {
+              return j != i ? .6 : 1;
+            })
+				})
+			.on("mousemove", function(d, i) {
+				mousex = d3.mouse(this);
+				mousex = mousex[0];
+				var invertedx = x.invert(mousex);
+				invertedx = invertedx.getYear();
+				var selected = (d.values);
+				for (var k = 0; k < selected.length; k++) {
+					datearray[k] = selected[k].date
+					datearray[k] = datearray[k].getYear();
+				}
+				mousedate = datearray.indexOf(invertedx);
+				pro = d.values[mousedate].value;
+				partOfGlobe(d.values[mousedate].key);
+				d3.select(this)
+					.classed("hover", true)
+					.attr("stroke", strokecolor)
+					.attr("stroke-width", "0.5px"),
+					tooltip.html( "<p>" + d.key + "<br>" + pro +
+						"</p>" ).style("visibility", "visible");
+				})
+			.on("mouseout", function(d, i) {
+				svg.selectAll(".layer")
+					.transition()
+					.duration(250)
+					.attr("opacity", "1");
+					d3.select(this)
+						.classed("hover", false)
+						.attr("stroke-width", "0px"), tooltip.html( "<p>" +
+							d.key + "<br>" + pro + "</p>" ).style("visibility", "hidden");
+				})
+
+  var verticalLine = d3.select(".chart")
+                  .append("div")
+                  .attr("class", "remove")
+                  .style("position", "absolute")
+                  .style("z-index", "19")
+                  .style("width", "1px")
+                  .style("height", "380px")
+                  .style("top", "10px")
+                  .style("bottom", "30px")
+                  .style("left", "0px")
+                  .style("background", "#fff");
+
+  d3.select(".chart")
+      .on("mousemove", function(){
+         mousex = d3.mouse(this);
+         mousex = mousex[0] + 5;
+         verticalLine.style("left", mousex + "px" )})
+      .on("mouseover", function(){
+         mousex = d3.mouse(this);
+         mousex = mousex[0] + 5;
+         verticalLine.style("left", mousex + "px")});
+  }); // end csv function call
+} // end of chart function call
+</script>
+</body>
+</html>

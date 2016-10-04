@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Interactive Steamgraph</title>
+<style>
+
+body {
+  font: 10px sans-serif;
+}
+
+.chart {
+  background: #fff;
+}
+
+p {
+  font: 12px helvetica;
+}
+
+.axis path, .axis line {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1px;
+  shape-rendering: crispEdges;
+}
+
+rect {
+  fill-opacity: .6;
+  fill: steelblue;
+}
+
+</style>
+<body>
+
+<h1>Streamgraph visualization of Global Warming</h1>
+
+<p>
+Streamgraphs are stacked area graphs displaying different time series upon one another (see <a class = "blantLink" href = "http://leebyron.com/streamgraph/">Lee Byron</a> introduction of streamgraphs). In this visualization I used a streamgraph to plot the time course of temperature changes measured in different zones on the earth. The data is from NASA and it is available <a class = "blantLink" href = "http://data.giss.nasa.gov/gistemp/">here</a>. 
+</p>
+<p>
+Streamgraphs allow plotting all data at once. However, if the data is complex it is difficult to understand what the graph is showing. The dataset I chose contains temperature for each year from 1880 to 2016 for zones (Globe, North Hemisphere, South Hemisphere, and the zones between latitudes 24N-90N, 24S-24N, 90S-24S, 64N-90N, 44N-64N, 24N-44N, Equator-24N, 24S-Equator, 44S-24S, 64S-44S, 90S-64S). Given the amount of zones it was difficult to find a way to represent the data clearly with a streamgraph. Therefore I chose to represent the different zones on the earth also as a areas on a circle on the side of the streamgraph. The lines crossing the earth are the latitudes representing the zones at which the temperatures were measured. I used a blue bar scrolling through the circle/earth to identify the zone on the streamgraph. 
+</p>
+<h4>Is temperature rising? </h4>
+<p>
+I found particularly interesting the increase of temperature in the zone between the 60th and 90th parallel south (60S-90S). From being the lowest temperature it became the zone with the highest increase in temperature across the years. It is interesting that there is no land there but mainly ocean and ice, which is likely to increase in temperature more rapidly than earth. Would this also be a mechanism of mother nature to protect us from warming up the planet too much? ... it should work, up to the point that we've melted all the ice. 
+</p>
+<p>
+On <a class = "blantLink" href = "">github</a>  I posted the code to reproduce this visualization and the data. On <a class = "blantLink" href = "">my blog</a>  I wrote a short explanation of the code I used to make the visualization. This <a class = "blantLink" href = ""paolo.mp-concepts.net/dataVis/globalWarmingStreamGraph.html">page</a> instead has an interactive version of this visualization. 
+<p/>
+
+<h2 id="p1">Temperature rise </h2>
+
+<svg class="sphere"></svg> 
+
+
+<br>
+<div class="chart">
+</div>
+
+<script src="https://d3js.org/d3.v3.min.js"></script>
+
+<script>
+var yPos = 90;
+var marginGlobe = {top: 10, right: 50, bottom: 10, left: 5},
+    widthGlobe = (yPos * 2) + 55 - marginGlobe.left - marginGlobe.right,
+    heightGlobe = (yPos * 2) + 20 - marginGlobe.top - marginGlobe.bottom;
+
+var latitudes = ['90N', '64N', '44N', '24N', 'EQU', '24S', '44S', '64S', '90S'];
+var nTicks = latitudes.length;
+var posLine = d3.range(0, yPos * 2 + 1, yPos * 2 / (nTicks-1));
+var lineData = [];
+for (firstDim = 0; firstDim < nTicks; firstDim++) {
+	lineData[firstDim] = [{x: 0,  y: posLine[firstDim], name:latitudes[firstDim]},
+	  {x: widthGlobe, y: posLine[firstDim]}];
+}
+
+var svgGlobe = d3.select(".sphere")
+    .attr("width", widthGlobe + marginGlobe.left + marginGlobe.right)
+    .attr("height", heightGlobe + marginGlobe.top + marginGlobe.bottom)
+  .append("g")
+    .attr("transform", "translate(" + marginGlobe.left + "," + marginGlobe.top + ")");
+
+var globe = svgGlobe.append("g")
+                .attr("class", "globe");
+
+globe.selectAll("circle")
+    .data([yPos])
+    .enter()
+    .append("circle")
+.attr("cy", yPos)
+	.attr("cx", yPos)
+	.attr("r", yPos)
+	.attr("style", "fill:green");
+
+
+var lineFunction = d3.svg.line()
+						.x(function(d) { return d.x; })
+						.y(function(d) { return d.y; });
+						
+var lines = svgGlobe.selectAll(".line")
+    .data(lineData)
+    .enter().append("g")
+      .attr("class", "city");
+      
+lines.append("path")
+	.attr("class", "line")
+	.attr("d", function(d) {return lineFunction(d); })
+	.attr("stroke", "#f00")
+	.attr("stroke-opacity", ".2")
+	.attr("shape-rendering", "crispEdges")
+	.attr("fill", "none");
+	
+lines.append("text")
+	.datum(function(d) { //console.log(d); console.log(d[d.length- 1].x)
+		return {x: d[d.length - 1].x, y: d[d.length - 1].y, id: d[0].name}; })
+	.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
+	.attr("x", 3)
+	.attr("dy", "0.35em")
+	.style("font", "10px sans-serif")
+	.text(function(d){return d.id;})
+
+var overlappingArea = svgGlobe.append("g")
+                .attr("class", "overlappingArea");
+
+var part1= nTicks-2, part2 = nTicks-1;
+var data = [{
+	value:Math.max(lineData[part2][0].y, lineData[part1][0].y), 
+	height: Math.abs(
+		Math.max(lineData[part2][0].y, lineData[part1][0].y) - 
+		Math.min(lineData[part2][0].y, lineData[part1][0].y)
+		)
+}];
+
+overlappingArea.selectAll("circle")
+	.data(data) // this has to be a vector
+  .enter().append("rect")
+	.attr("y", function(d) { return d.value; })
+	.attr("x", 0)
+	.attr("height", function(d) { return d.height; })
+	.attr("width", widthGlobe);
+
+function partOfGlobe(parts) {
+	switch (parts){
+		case "Glob": 
+			parts = "90S.90N";
+			break;
+		case "NHem": 
+			parts = "EQU.90N";
+			break;
+		case "SHem": 
+			parts = "90S.EQU";
+			break;
+	}
+	var res = parts.split('.');
+	
+	for (part1 = 0; part1 < nTicks; part1++) {
+		if (res[0] == latitudes[part1])
+			break;
+	}
+	for (part2 = 0; part2 < nTicks; part2++) {
+		if (res[1] == latitudes[part2])
+			break;
+	}
+	
+	var data = [{
+		value:Math.max(lineData[part2][0].y, lineData[part1][0].y), 
+		height: Math.abs(
+			Math.max(lineData[part2][0].y, lineData[part1][0].y) - 
+			Math.min(lineData[part2][0].y, lineData[part1][0].y)
+			)
+	}];
+
+	overlappingArea.selectAll("rect")
+		.data(data) // this has to be a vector
+    .transition()
+    .duration(750) // this is added on top of the previous one
+    .attr("y", function(d) { return d.value - d.height; })
+		.attr("height", function(d) { return d.height; });
+};                
+
+function renameParts(parts) {
+	switch (parts){
+		case "Glob": 
+			parts = "on the whole globe";
+			break;
+		case "NHem": 
+			parts = "on the north hemisphere";
+			break;
+		case "SHem": 
+			parts = "on the south hemispere";
+			break;
+		default:
+			parts = parts.split('.');
+			parts = "between " + parts[0] + " and " + parts[1];
+			break;
+	}
+	return (parts);
+}        
+      
+color = "fire";
+switch (color) {
+	case "blue":
+    colorrange = ["#045A8D", "#2B8CBE", "#74A9CF", "#A6BDDB", "#D0D1E6", "#F1EEF6"];
+		break;
+	case "pink":
+    colorrange = ["#980043", "#DD1C77", "#DF65B0", "#C994C7", "#D4B9DA", "#F1EEF6"];
+		break;
+	case "orange":
+    colorrange = ["#B30000", "#E34A33", "#FC8D59", "#FDBB84", "#FDD49E", "#FEF0D9"];
+		break;
+	case "fire":
+    colorrange = ["#ffffcc","#ffeda0","#fed976","#feb24c","#fd8d3c","#fc4e2a","#e31a1c","#bd0026","#800026"];   
+		break;
+	case "RdYlBl":
+    colorrange = ["#a50026","#d73027","#f46d43","#fdae61","#fee090","#ffffbf","#e0f3f8","#abd9e9","#74add1","#4575b4","#313695"];
+		break;
+	case "RdBl":
+    colorrange = ["#a50026","#d73027","#f46d43","#fee090","#ffffbf","#abd9e9","#74add1","#4575b4","#313695"];
+		break;
+	case "RdBlShort":
+    colorrange = ["#d73027","#fc8d59","#fee090","#ffffbf","#e0f3f8","#91bfdb","#4575b4"];
+		break;
+}
+// 	strokecolor = colorrange[0];
+strokecolor = colorrange[colorrange.length - 1];
+
+var format = d3.time.format("%Y");
+
+var marginStream = {top: 20, right: 60, bottom: 30, left: 80};
+var widthStream = document.body.clientWidth - marginStream.left - marginStream.right;
+var heightStream = 400 - marginStream.top - marginStream.bottom;
+
+var x = d3.time.scale()
+                .range([0, widthStream]);
+
+var y = d3.scale.linear()
+                .range([heightStream-10, 0]);
+
+var z = d3.scale.ordinal()
+    .range(colorrange);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom")
+    .ticks(d3.time.years, 10);
+
+var yAxis = d3.svg.axis()
+    .scale(y);
+
+var stack = d3.layout.stack()
+                      .offset("silhouette")
+                      .values(function(d) { return d.values; })
+                      .x(function(d) { return d.date; })
+                      .y(function(d) { return d.value; });
+
+var nest = d3.nest()
+              .key(function(d) { return d.key; });
+
+var area = d3.svg.area()
+                  .interpolate("cardinal")
+                  .x(function(d) { return x(d.date); })
+                  .y0(function(d) { return y(d.y0); })
+                  .y1(function(d) { return y(d.y0 + d.y); });
+
+var svg = d3.select(".chart").append("svg")
+                              .attr("width", widthStream + marginStream.left + marginStream.right)
+                              .attr("height", heightStream + marginStream.top + marginStream.bottom)
+                              .append("g")
+                              .attr("transform", "translate(" + marginStream.left +
+                                "," + marginStream.top + ")");
+
+d3.csv("data/outfile.csv", function(data) {
+              data.forEach(function(d) {
+                d.date = format.parse(d.date);
+                d.value = +d.value / 1e2;
+              });
+
+var layers = stack(nest.entries(data));
+
+x.domain(d3.extent(data, function(d) { return d.date; }));
+y.domain([0, d3.max(data, function(d) { return d.y0 + d.y; })]);
+
+svg.selectAll(".layer")
+    .data(layers)
+    .enter().append("path")
+    .attr("class", "layer")
+    .attr("d", function(d) { return area(d.values); })
+    .style("fill", function(d, i) { return z(i); });
+
+svg.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + heightStream + ")")
+    .call(xAxis)
+		.append("text")
+    .attr("x", 5) // .attr("y", 6)
+		.attr("y", 30)
+    .attr("dx", ".71em")
+    .style("text-anchor", "end") // "middle", see also "startOffset"="100%"
+    .text("Year"); /*(ºC)*/
+
+svg.append("g")
+    .attr("class", "y axis")
+    .attr("transform", "translate(" + widthStream + ", 0)")
+    .call(yAxis.orient("right"))
+		.call(yAxis.tickFormat(function(d) { return Math.round(((5 / 9) * (d - 32))*10)/10 + " °F"; }));
+
+svg.append("g")
+    .attr("class", "y axis")
+    .call(yAxis.orient("left"))
+		.call(yAxis.tickFormat(function(d) { return d + " °C"; }))
+    .append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", -60) // .attr("y", 6)
+    .attr("dy", ".71em")
+    .style("text-anchor", "end") // "middle", see also "startOffset"="100%"
+    .text("Temperature"); /*(ºC)*/
+
+var counter = 0;
+var nAreas = layers.length;
+var colFil = nAreas - 1;
+setInterval(function() {
+	var res = counter % nAreas;
+  svg.selectAll(".layer").transition()
+      .duration(750)
+      .attr("opacity", function(d, i) { return i != res ? 1 : .6; })
+			.attr("stroke", function(d, i) { return i != res ? colorrange[0] : (colFil - i) ;})
+      .attr("stroke-width", function(d, i) { return i != res ? ".1px" : "0.5px";})
+			.style("fill", function(d, i) { return i != res ? z(i) : "steelblue"; });
+	
+	partOfGlobe(layers[res].key);
+	document.getElementById("p1").innerHTML = 'Temperature rise ' + renameParts(layers[res].key);
+	counter++;
+	}, 3000);
+
+}); // end csv function call
+</script>
+</body>
+</html>
