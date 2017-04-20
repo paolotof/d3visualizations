@@ -7,7 +7,7 @@
   <meta name="keywords" content="HTML,CSS,JavaScript,d3.jds,lexical decision,reaction times,data visualization">
   <meta name="author" content="Paolo Toffanin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
+</head>  
 <style>
 body {
   font: 11px sans-serif;
@@ -40,8 +40,8 @@ h4.normal {
 .footer {
 	display: block;
   padding: .2%;
-}
-
+} 
+    
 }
 </style>
 
@@ -50,12 +50,13 @@ h4.normal {
 </h4>
 
 <p class="normal">
-This visualization displays four variables (or dimensions) with a two dimensional plot. The scatterplot displays reaction time (RT) differences between cochlear implant users and normal hearing participants in a lexical decision task. During lexical decision participants
-judge whether a sound stimulus they hear is a word or not (like `trud' in English).
-I presented differences in RT in a scatter plot as a function of 1) neighborhood density
-and 2) word frequency (log-scaled). The size of the dot reflects the 3) size of the
-difference. The colors of the dots distinguish 4) words (blue) and non-words (orange). Moreover, the plot is interactive. Hovering with the mouse over one of the dots displays the name of the
-(non-)word, the size of the difference in milliseconds (ms) and the relative neighborhood density  and (log-scaled) frequency.
+This visualization displays four variables (or dimensions) with a two dimensional plot. The scatterplot displays reaction time (RT) differences between cochlear implant users and normal hearing participants in a lexical decision task. During lexical decision participants 
+judge whether a sound stimulus they hear is a word or not (like `trud' in English).</p>
+<p class="normal">
+The four dimensions are <b>differences in RT</b> (1) displayed as a function of <b>neighborhood density</b> (2)  
+and <b>word frequency</b> (3). The size of the dot reflects the  size of the 
+difference in RT. The colors of the dots distinguish <b>words</b> (blue) <b>and non-words</b> (orange) (4). The plot is interactive. Hovering the mouse on a dots displays the name of the
+(non-)word, the size of the difference in milliseconds (ms), the neighborhood density and frequency (log-scaled).
 </p>
 <p class="normal">
 <a href="https://paolotoffanin.wordpress.com/2017/04/14/four-dimensions-in-two-dimensions">This</a> post describes in detail the creation of the scatterplot.
@@ -68,7 +69,7 @@ var margin = {top: 40, right: 20, bottom: 30, left: 40},
     width = 760 - margin.left - margin.right,
     height = 400 - margin.top - margin.bottom;
 
-var xValue = function(d) { return d["logFreq"];},
+var xValue = function(d) { return d["logFreq"];}, 
     xScale = d3.scaleLinear().range([0, width]),
     xMap = function(d) { return xScale(xValue(d));};
 
@@ -78,11 +79,11 @@ var yValue = function(d) { return d.neighDens;},
 
 var cValue = function(d) { return d.words;},
     color = d3.scaleOrdinal(d3.schemeCategory10);
-
+		
 var sizeValue = function(d) { return d.dotSize;},
-		sizeScale = d3.scaleLinear().range([1, 25]),
+		sizeScale = d3.scaleSqrt().range([3, 20]),
 		sizeMap = function(d) { return sizeScale(sizeValue(d));};
-
+		
 var svg = d3.select("body").append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
@@ -117,7 +118,7 @@ d3.tsv("data/wordRT.tsv", function(error, data) {
 			.attr("y", height-6)
       .style("text-anchor", "end")
 			.text("Word frequency (log)");
-
+			
   svg.append("g")
       .attr("class", "y axis")
 			.call(d3.axisLeft(yScale));
@@ -128,7 +129,7 @@ d3.tsv("data/wordRT.tsv", function(error, data) {
       .attr("dy", ".71em")
       .style("text-anchor", "end")
 			.text("Neighborhood density");
-
+			
   svg.selectAll(".dot")
       .data(data)
     .enter().append("circle")
@@ -137,12 +138,12 @@ d3.tsv("data/wordRT.tsv", function(error, data) {
       .attr("cx", xMap)
       .attr("cy", yMap)
 			.attr("fill-opacity", 0.75)
-      .style("fill", function(d) { return color(cValue(d));})
+      .style("fill", function(d) { return color(cValue(d));}) 
       .on("mouseover", function(d) {
           tooltip.transition()
                .duration(200)
                .style("opacity", .9);
-				 tooltip.html(d["word"] + " " + d["diff"] + " (ms)" + "<br/>" +
+				 tooltip.html(d["word"] + " " + d["diff"] + " (ms)" + "<br/>" + 
 					 "(" + xValue(d) + ", " + yValue(d) + ")")
                .style("left", (d3.event.pageX + 5) + "px")
                .style("top", (d3.event.pageY - 28) + "px");
@@ -157,20 +158,46 @@ d3.tsv("data/wordRT.tsv", function(error, data) {
       .data(color.domain())
     .enter().append("g")
       .attr("class", "legend")
-      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
-
-  legend.append("rect")
-      .attr("x", width - 18)
-      .attr("width", 18)
-      .attr("height", 18)
-      .style("fill", color);
+      .attr("transform", function(d, i) { 
+				return "translate(0," + i * 20 + ")"; });
 
   legend.append("text")
-      .attr("x", width - 24)
-      .attr("y", 9)
+			.attr("x", margin.left)
+			.attr("y", 9)
       .attr("dy", ".35em")
-      .style("text-anchor", "end")
+			.style("text-anchor", "start")// start | middle | end
       .text(function(d) { return d;})
+			.style("font-size", "12px")
+			.style("font-weight", "bold")
+			.style("fill", color);
+			
+// 		draw legend for circle size
+	// specify range of variation for the circles in the legend
+	var startV = sizeScale.domain()[0];
+	var endV = sizeScale.domain()[1];
+	var nSteps = 3;
+	var step = (endV - startV) / nSteps;
+	var sizeLegend = svg.selectAll(".sizeLegend")
+			.data(d3.range(startV, endV+1, step))
+			.enter().append("g")
+			.attr("class", "sizeLegend")
+			.attr("transform", function(d, i) {
+				return "translate(0," + ( (i) * (sizeScale(d)*1.5))+ ")";
+			});
+			
+	// draw legend circle sizes
+	sizeLegend.append("circle")
+			.attr("cx", width - 65)
+			.attr("r", function(d){ return sizeScale(d);})
+			.attr("stroke", "black")
+			.style("fill", "white");
+			
+	// draw legend text
+	sizeLegend.append("text")
+			.attr("x", width + margin.right)
+			.attr("dy", ".35em")
+			.style("text-anchor", "end")
+			.text(function(d) { return (Math.round(d) + " (ms)");})
 });
 </script>
 
