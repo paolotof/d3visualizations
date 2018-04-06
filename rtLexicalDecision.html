@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>RT differences lexical decision </title>
+	<title>RT differences in lexical decision </title>
 	<meta charset="utf-8">
   <meta name="description" content="Visualization of reaction time differences in a lexical decision task">
-  <meta name="keywords" content="HTML,CSS,JavaScript,d3.jds,lexical decision,reaction times,data visualization">
+  <meta name="keywords" content="HTML,CSS,JavaScript,d3.js,lexical decision,reaction times,data visualization,animation,scatterplot,dot plot,transition">
   <meta name="author" content="Paolo Toffanin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
@@ -41,10 +41,7 @@ h4.normal {
 	display: block;
   padding: .2%;
 }
-
-}
 </style>
-
 <body>
 <h4 class="normal"> Four dimensions in Two dimensions.
 </h4>
@@ -53,22 +50,29 @@ h4.normal {
 This visualization displays four variables (or dimensions) with a two dimensional plot. The scatterplot displays reaction time (RT) differences between cochlear implant users and normal hearing participants in a lexical decision task. During lexical decision participants
 judge whether a sound stimulus they hear is a word or not (like `trud' in English).</p>
 <p class="normal">
-The four dimensions are <b>differences in RT</b> (1) displayed as a function of <b>neighborhood density</b> (2)
+The four dimensions are <b>differences in RT</b> (1) between normal hearing participants and participants with a cochlear implant displayed as a function of <b>neighborhood density</b> (2)
 and <b>word frequency</b> (3). The size of the dot reflects the  size of the
-difference in RT. The colors of the dots distinguish <b>words</b> (blue) <b>and non-words</b> (orange) (4). The plot is interactive. Hovering the mouse on a dots displays the name of the
-(non-)word, the size of the difference in milliseconds (ms), the neighborhood density and frequency (log-scaled).
+difference in RT. The colors of the dots distinguish <b>words</b> (blue) and <b>non-words</b> (orange)(4). The color range can be extended to another dimension as well. Some of the reaction times differences were negative, meaning that RT of cochlear implant user were shorter than the RT of normal hearing participants. I added two buttons to switch from a representation with two colors (words vs. non-words) to a representation with four colors (words vs. non-words for positive and negative differences respectively). On the right side of the plot a `size' legend helps recognizing the size and range of the differences. Moreover, the plot is interactive. Hovering the mouse on a dot displays the name of the (non-)word, the size of the difference in milliseconds (ms), the neighborhood density and frequency (log-scaled). 
 </p>
 <p class="normal">
 <a href="https://paolotoffanin.wordpress.com/2017/04/14/four-dimensions-in-two-dimensions">This</a> post describes in detail the creation of the scatterplot.
 </p>
-<a name="dotPlot"></a>
+
 <script src="http://d3js.org/d3.v4.min.js"></script>
 
-
+<p class="normal"> <a name="dotPlot"></a>	
+Click on one  of the text labels below to toggle between a display with two or four colors. The four colors display adds an additional dimension by which positive vs. negative differences allow to identify for which item one group was faster or slower than the other.
+</p>
+<p>
+<form>
+	<label><input type="radio" name="mode" value="2dimensions" checked> Two or</label>
+	<label><input type="radio" name="mode" value="4dimensions"> Four types of reaction times differences.</label>
+</form>
+</p>
 <script>
-var margin = {top: 40, right: 20, bottom: 30, left: 40},
+var margin = {top: 10, right: 20, bottom: 30, left: 40},
     width = 760 - margin.left - margin.right,
-    height = 400 - margin.top - margin.bottom;
+    height = 450 - margin.top - margin.bottom;
 
 var xValue = function(d) { return d["logFreq"];},
     xScale = d3.scaleLinear().range([0, width]),
@@ -78,6 +82,7 @@ var yValue = function(d) { return d.neighDens;},
     yScale = d3.scaleLinear().range([height, 0]),
     yMap = function(d) { return yScale(yValue(d));};
 
+// var cValue = function(d) { return d.newWords;},
 var cValue = function(d) { return d.words;},
     color = d3.scaleOrdinal(d3.schemeCategory10);
 
@@ -99,17 +104,17 @@ d3.tsv("data/wordRT.tsv", function(error, data) {
 	if (error) throw error;
   data.forEach(function(d) {
 		d.neighDens = +d.neighDens;
-    d["logFreq"] = +d["logFreq"];
-		d.diff = +d.diff * 1000;
+    d["logFreq"] = Math.round(+d["logFreq"] * 10) / 10;
+		d.newWords = Math.sign(d.diff) + d.words;
+		d.diff = Math.round(+d.diff * 1000); // first decimal place in ms is nonsense
 		d.dotSize = Math.abs(d.diff);
   });
-
-  // add buffer (+/-1) to data to avoid dots overlapping the axis
+// add buffer to data domain so that dots do not overlap to the axis
   xScale.domain([d3.min(data, xValue)-1, d3.max(data, xValue)+1]);
   yScale.domain([d3.min(data, yValue)-1, d3.max(data, yValue)+1]);
 	sizeScale.domain([d3.min(data, sizeValue), d3.max(data, sizeValue)]);
-
-	svg.append("g")
+// x-axis
+  svg.append("g")
       .attr("class", "x axis")
       .attr("transform", "translate(0," + height + ")")
 			.call(d3.axisBottom(xScale));
@@ -118,8 +123,8 @@ d3.tsv("data/wordRT.tsv", function(error, data) {
       .attr("x", width)
 			.attr("y", height-6)
       .style("text-anchor", "end")
-			.text("Word frequency (log)");
-
+			.text("logFreq");
+// y-axis
   svg.append("g")
       .attr("class", "y axis")
 			.call(d3.axisLeft(yScale));
@@ -129,8 +134,8 @@ d3.tsv("data/wordRT.tsv", function(error, data) {
       .attr("y", 6)
       .attr("dy", ".71em")
       .style("text-anchor", "end")
-			.text("Neighborhood density");
-
+			.text("neighDens");
+// draw dots
   svg.selectAll(".dot")
       .data(data)
     .enter().append("circle")
@@ -154,57 +159,94 @@ d3.tsv("data/wordRT.tsv", function(error, data) {
                .duration(500)
                .style("opacity", 0);
       });
-
-  var legend = svg.selectAll(".legend")
-      .data(color.domain())
+// draw legend
+		var legend = svg.selectAll(".legend")
+			.data(color.domain())
     .enter().append("g")
       .attr("class", "legend")
-      .attr("transform", function(d, i) {
-				return "translate(0," + i * 20 + ")"; });
-
+      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
   legend.append("text")
-			.attr("x", margin.left)
-			.attr("y", 9)
+			.attr("x", margin.left + 70)
       .attr("dy", ".35em")
-			.style("text-anchor", "start")// start | middle | end
-      .text(function(d) { return d;})
+      .style("text-anchor", "end")
+      .text(function(d) { 
+				d = d.replace(/^1/, '+ ');
+				d = d.replace(/1/, ' ');
+				return d;})
 			.style("font-size", "12px")
 			.style("font-weight", "bold")
 			.style("fill", color);
-
-// 		draw legend for circle size
-	// specify range of variation for the circles in the legend
+// draw legend for sizes of the circles
 	var startV = sizeScale.domain()[0];
 	var endV = sizeScale.domain()[1];
 	var nSteps = 3;
 	var step = (endV - startV) / nSteps;
 	var sizeLegend = svg.selectAll(".sizeLegend")
-			.data(d3.range(startV, endV+1, step))
-			.enter().append("g")
-			.attr("class", "sizeLegend")
-			.attr("transform", function(d, i) {
+      .data(d3.range(startV, endV+1, step))
+    .enter().append("g")
+      .attr("class", "sizeLegend")
+      .attr("transform", function(d, i) {
 				return "translate(0," + ( (i) * (sizeScale(d)*1.5))+ ")";
 			});
+  sizeLegend.append("circle")
+      .attr("cx", width - 65)
+      .attr("r", function(d){ return sizeScale(d);})
+      .attr("stroke", "black")
+      .style("fill", "white");
+  sizeLegend.append("text")
+			.attr("x", width - 37)
+      .attr("dy", ".35em")
+      .style("text-anchor", "start")
+      .text(function(d) { return (Math.round(d) + " (ms)");})
 
-	// draw legend circle sizes
-	sizeLegend.append("circle")
-			.attr("cx", width - 65)
-			.attr("r", function(d){ return sizeScale(d);})
-			.attr("stroke", "black")
-			.style("fill", "white");
+	d3.selectAll("input")
+		.on("change", changeColor);
+		
+	var	col2fill = "words";
+	function changeColor(){
+		if (this.value === "2dimensions") col2fill = "words";
+		else	col2fill = "newWords";
+		updateValues();	 
+	}
 
-	// draw legend text
-	sizeLegend.append("text")
-			.attr("x", width + margin.right)
-			.attr("dy", ".35em")
-			.style("text-anchor", "end")
-			.text(function(d) { return (Math.round(d) + " (ms)");})
+	function updateValues(){
+		legend = svg.selectAll(".legend")
+			.data([]);
+		legend.exit()
+			.remove();	
+		color.domain(data.map(function(d) { return d[col2fill];}));
+		console.log(color.domain());
+		svg.selectAll("circle.dot")
+			.data(data)
+			.transition()
+			.duration(1000)
+			.style("fill", function(d){return color(d[col2fill]);});
+		legend = svg.selectAll(".legend")
+			.data(color.domain());
+		legend.enter().append("text")
+			.attr("class", "legend")
+			.attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; })
+			.attr("x", margin.left + 70)
+      .attr("dy", ".35em")
+      .style("text-anchor", "end")
+      .text(function(d) { 
+				d = d.replace(/^1/, '+ ');
+				d = d.replace(/1/, ' ');
+				return d;})
+			.style("font-size", "12px")
+			.style("font-weight", "bold")
+			.style("fill", color);
+		legend.exit()
+			.transition()
+			.duration(1000)
+			.remove();	
+	}	
 });
 </script>
-
+<p>The graph displayed on this <a href="http://paolo.mp-concepts.net/dataVis/RT_lexic_bars.html">page</a> shows the difference between words and non-words on a smaller scale displaying them for each pair of word and non-word but also for each single participant.</p>
 <div class="footer">
 <p>Posted by: <a href="http://paolo.mp-concepts.net/">paolot</a></p>
-<p>This plot is an improvement of <a href="http://paolo.mp-concepts.net/dataVis/rtLexicalDecision.html">this</a> previous version</p>
+<p>This plot is an improvement of <a href="http://paolo.mp-concepts.net/dataVis/rtDiffNeat.html">this</a> and <a href="http://paolo.mp-concepts.net/dataVis/rtWordsNnWords.html">this</a> previous versions</p>.
 </div>
 </body>
 </html>
